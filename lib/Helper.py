@@ -46,6 +46,12 @@ def nonzero(x):
 		x = 1
 	return x
 
+def nonzerov(x, y):
+	if x == 0 and y == 0:
+		x = 1
+		y = 1
+	return(x, y)
+
 def nonzeror(x):
 	if round(x) == 0:
 		x = 1
