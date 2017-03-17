@@ -437,13 +437,13 @@ def main():
 				for organism2 in UltraGlobals.organisms:
 					if organism2.__class__ == Plant:
 						if pygame.Rect.colliderect(organism.hitbox, organism2.hitbox) == 1:
-							organism2.fitness -= 6
+							organism2.fitness -= (6+organism.poison)
 							#Lets animals eat plants
 							if organism2.dormant:
-								organism.energy += 0.5
+								organism.energy += (0.5+organism.poison)
 							else:
-								organism.energy += 6
-								organism.fitness += 2
+								organism.energy += (6+organism.poison)
+								organism.fitness += (2+organism.poison)
 							organism.fitness -= organism2.poison #Deactivate this line if you do not wish to have poison
 
 						elif pygame.Rect.colliderect(organism.view, organism2.hitbox) == 1:

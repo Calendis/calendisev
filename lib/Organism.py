@@ -31,7 +31,7 @@ class Organism(): #Base class for all organisms
 		self.x = 0 #Some basic properties that an organism must have
 		self.y = 0
 		self.size = (random()*10) +1
-		self.maxspeed = (nonzero(17-self.size/2)/20 +0.05)*2
+		self.maxspeed = (1/self.size)*5
 		self.xspeed = binaps(self.maxspeed / 4)
 		self.yspeed = binaps(self.maxspeed / 4)
 		self.xaccel = 0
@@ -86,8 +86,8 @@ class Organism(): #Base class for all organisms
 
 		self.lifespan -= 1 #An organism dies when its lifespan reaches zero
 		
-		if self.__class__ == Animal: #An organism loses energy, and loses more if it is larger and the closer it is to max speed
-			self.energy -= 0.05*self.size*(((self.xspeed+self.yspeed)/2)/self.maxspeed)
+		if self.__class__ == Animal: #An organism loses energy, and loses more if it is smaller and the closer it is to max speed
+			self.energy -= 0.05*(1/self.size)*(((self.xspeed+self.yspeed)/2)/self.maxspeed)
 			self.energy -= self.poison #It takes energy to produce poison
 		
 		if self.fitness < 1 or self.lifespan < 0:
