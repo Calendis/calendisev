@@ -34,6 +34,7 @@
   * Killing the smallest half of organisms
   * Population graph
   * Population limit **(can be adjusted in the code)**
+  * Display information on an organism
 
 * TODO:
   * Give creatures adaptable behaviour via a neural network, or maybe just lists
