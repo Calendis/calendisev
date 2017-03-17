@@ -16,7 +16,7 @@ import shelve #Library for saving/loading data
 import os.path #Library for handling of filepaths based on operating system
 
 from lib.Helper import tempcontrol #Import various functions from a script
-from lib.Helper import colourcontrol
+
 from lib.Helper import nonzero
 from lib.Helper import genderfromboolean
 from lib.Helper import vcolourcontrol
@@ -24,6 +24,7 @@ from lib.Helper import vcolourcontrol
 from lib import UltraGlobals #Import the organisms lists from UltraGlobals.py
 
 from lib.Organism import * #Import the classes for organisms
+from lib.Heatbox import * #Import class used for temperature zones
 
 from lib import pygame_textinput
 
@@ -443,7 +444,7 @@ def main():
 							else:
 								organism.energy += 6
 								organism.fitness += 2
-							#organism.fitness -= organism2.poison #Deactivate this line if you do not wish to have poison
+							organism.fitness -= organism2.poison #Deactivate this line if you do not wish to have poison
 
 						elif pygame.Rect.colliderect(organism.view, organism2.hitbox) == 1:
 							organism.target = organism2 #Allows animals to target plants for eating
@@ -471,6 +472,7 @@ def main():
 			insulationtext = oxygen_font.render("Insulation: "+str(round(info_target.insulation, 1)),1,(0,0,0))
 			waterproofingtext = oxygen_font.render("Waterproofing: "+str(round(info_target.waterproofing,)),1,(0,0,0))
 			mutabilitytext = oxygen_font.render("Mutability: "+str(round(info_target.mutability, 1)),1,(0,0,0))
+			poisontext = oxygen_font.render("Poison: "+str(round(info_target.poison, 1)),1,(0,0,0))
 		except:
 			speciestext = oxygen_bold_font.render("Click on an organism for statistics...",1,(0,0,0))
 
@@ -489,10 +491,10 @@ def main():
 
 		#Drawing Below
 		screen.fill((colourcontrol(temperature*5), colourcontrol(100-nonzero(temperature)), colourcontrol(100-temperature*5)))
-		#Fills the screen with a colour based off the temperature
+		#Fills the screen with a colour based off of the temperature
 
 		for organism in UltraGlobals.organisms: #Iterates over the organisms and draws them
-			pygame.draw.circle(screen, vcolourcontrol((organism.colour)), (round(organism.x), round(organism.y)), round(organism.size))
+			pygame.draw.circle(screen, vcolourcontrol((organism.colour)), (round(organism.x), round(organism.y)), round(organism.size/3)+2)
 
 			if show_hitboxes: #Draws hitboxes if show_hitboxes is True
 				pygame.draw.line(screen, (255,0,0), (organism.hitbox.x, organism.hitbox.y), (organism.hitbox.x+organism.hitbox.width, organism.hitbox.y))
@@ -559,6 +561,7 @@ def main():
 			screen.blit(insulationtext, (810,165))
 			screen.blit(waterproofingtext, (810,185))
 			screen.blit(mutabilitytext, (810,205))
+			screen.blit(poisontext, (810,225))
 		except:
 			screen.blit(speciestext, (810,5))
 
