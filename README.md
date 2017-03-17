@@ -8,7 +8,7 @@
 #### Current list of features:
 
 * Organisms
- *Species name
+ * Species name
  * Insulation
  * Size
  * Speed
