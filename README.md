@@ -20,7 +20,10 @@
   * Energy
   * Lifespan
   * Eating
-  * Waterproofing **(to-be-removed)** 
+  * Waterproofing **(to-be-removed)**
+  * Aggression value
+  * Defensiveness value
+  * Predation on plants, and other animals
 
 * Environment
   * Temperature
@@ -37,5 +40,5 @@
   * Display information on an organism
 
 * TODO:
-  * Give creatures adaptable behaviour via a neural network, or maybe just lists
-  * Make multiple temperature zones, so different ecosystems can form
+  * Give creatures adaptable behaviour via a neural network... somehow
+  * Make multiple temperature zones, so maybe different ecosystems can form
