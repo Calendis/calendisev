@@ -41,8 +41,11 @@ class Organism(): #Base class for all organisms
 		self.fitness = self.maxfitness/2
 		self.dead = False
 		self.dormant = False
+		self.can_see_targeter = False
 		self.seedrange = randint(1,40)
 		self.poison = random()
+		self.aggressiveness = round(random()*100)
+		self.defensiveness = 100 - self.aggressiveness
 
 		self.energy = self.maxfitness*2
 		self.lifespan = round(((self.maxfitness)*self.size)*0.6)
@@ -54,17 +57,26 @@ class Organism(): #Base class for all organisms
 
 		self.mutability = random()*2
 		self.gender = randint(0,1)
+
 		if self.gender == 0:
 			self.gender = False
 		else:
 			self.gender = True
 
 		self.target = "other"
+		self.targeter = "other"
+		self.flee_target = "other"
+		self.mating_target = "other"
 
 		self.colourmod = (0,0,0)
 		self.generation = 0
 
 		self.name = name_1[randint(0,(len(name_1)-1))]+name_2[randint(0,len(name_2)-1)]+" "+name_1[randint(0,(len(name_1)-1))]+name_2[randint(0,len(name_2)-1)]
+
+		self.sensory_input = {"temperature": 0 ,"organism": "other"}
+
+		self.trait_value = (((self.colour[0] + self.colour[1] + self.colour[2])/30)+(self.maxfitness/3)+self.poison + self.insulation) + (self.size+2)*10
+		self.trait_value = round(self.trait_value)
 
 	def update(self): #Function that performs basic tasks on the organism, such as moving
 		'''if abs(self.xspeed) > self.maxspeed or abs(self.yspeed) > self.maxspeed:
@@ -109,21 +121,46 @@ class Organism(): #Base class for all organisms
 		self.yspeed = customlimit(self.yspeed, self.maxspeed)
 
 		if self.__class__ == Animal: #Speed must never be zero if the organism is an animal
-			#self.xspeed = nonzero(self.xspeed)
-			#self.yspeed = nonzero(self.yspeed)
 			self.xspeed, self.yspeed = nonzerov(self.xspeed, self.yspeed)
 
-		if self.target == False: #Acceleration is set to zero if the organism has no target
+		if self.sensory_input["organism"] != "other":
+			if self.name != self.sensory_input["organism"].name and self.aggressiveness - self.sensory_input["organism"].size - self.sensory_input["organism"].defensiveness > 25:
+				self.target = self.sensory_input["organism"]
+				self.sensory_input["organism"].targeter = self
+
+		if self.can_see_targeter:
+			if self.defensiveness + self.targeter.size - self.targeter.aggressiveness > 25:
+				self.flee_target = self.targeter
+			else:
+				self.target = self.targeter
+			self.can_see_targeter = False
+
+		if self.flee_target == False and self.target == False and self.mating_target == False: #Acceleration is set to zero if there is no target or targeter
 			self.xaccel = 0
 			self.yaccel = 0
-		elif self.target == "other":
-			pass
-		else:
+
+		if self.target != False and self.target != "other":
 			self.xaccel = ((self.target.x - self.x)/2) #Acceleration is based on the difference between...
 			self.yaccel = ((self.target.y - self.y)/2) #...the coordinates of the organism and the target
 
 			if self.target.dead == True:
 				self.target = False #Removes the target if it dies
+
+		if self.flee_target != False and self.flee_target != "other":
+			self.xaccel = -((self.flee_target.x - self.x)/2)
+			self.yaccel = -((self.flee_target.y - self.y)/2)
+
+			if self.flee_target.dead == True:
+				self.flee_target = False #Removes the flee target if it dies
+				self.can_see_targeter = False
+				self.targeter = False
+
+		if self.mating_target != False and self.mating_target != "other":
+			self.xaccel = ((self.mating_target.x - self.x)/2)
+			self.yaccel = ((self.mating_target.y - self.y)/2)
+
+			if self.mating_target.dead == True:
+				self.mating_target = False
 
 		if not self.dead:
 			self.x += self.xspeed #Updates the x and y positions with the speed, if the organism is alive
@@ -147,6 +184,12 @@ class Organism(): #Base class for all organisms
 
 	def mutate(self): #Mutates the organism. This can be thought of as a post-init
 		
+		if self.__class__ == Plant or self.__class__ == CallablePlant:
+			self.seerange = 0
+			self.aggressiveness = 0
+			self.defensiveness = 0
+			self.gender = "Other"
+
 		self.generation += 1 #Increments the generation variable when a creature is created
 
 		#Mutates the colour of the organism
@@ -198,18 +241,21 @@ class Animal(Organism): #Class for animal
 
 		self.mutate() #Mutates the animal
 
-	def reproduce(self, rsize, rmaxspeed, rmaxfitness, rinsulation, rwaterproofing, rmutability):
+	def reproduce(self, rsize, rmaxspeed, rmaxfitness, rinsulation, rwaterproofing, rmutability, ragro, rdef):
 		if len(UltraGlobals.animals) < ANIMAL_POPULATION_LIMIT: #The animal can reproduce if this function is called...
 			self.fitness -= self.maxfitness/2 #...and there are fewer organsims than the limit
 
-			offspring = CallableAnimal(self.colour, self.x, self.y, rsize, rmaxspeed, rmaxfitness, rinsulation, rwaterproofing, rmutability, self.generation, self.name, self.colourmod)
+			offspring = CallableAnimal(self.colour, self.x, self.y, rsize, rmaxspeed, rmaxfitness, rinsulation, rwaterproofing, rmutability, ragro, rdef, self.generation, self.name, self.colourmod)
 			UltraGlobals.organisms.append(offspring) #Creates another animal based off of itself
 			UltraGlobals.animals.append(offspring)
 			self.target = False
+			self.targeter = False
+			self.flee_target = False
+			self.mating_target = False
 
 class CallableAnimal(Animal): #An Animal class that takes more arguements. Needed for reproduction
 	"""docstring for CallableAnimal"""
-	def __init__(self, colour, x, y, size, maxspeed, maxfitness, insulation, waterproofing, mutability, generation, name, colourmod):
+	def __init__(self, colour, x, y, size, maxspeed, maxfitness, insulation, waterproofing, mutability, aggressiveness, defensiveness, generation, name, colourmod):
 		super(CallableAnimal, self).__init__(colour, x, y)
 		self.colour = colour
 		self.x = x
@@ -220,6 +266,8 @@ class CallableAnimal(Animal): #An Animal class that takes more arguements. Neede
 		self.insulation = insulation
 		self.waterproofing = waterproofing
 		self.mutability = mutability
+		self.aggressiveness = aggressiveness
+		self.defensiveness = defensiveness
 
 		self.generation = generation
 		self.name = name
@@ -248,7 +296,7 @@ class Plant(Organism): #Class for plants
 			self.energy += 1
 			if self.energy >= self.maxfitness:
 
-				self.fitness += 1
+				self.fitness += 0.5
 
 			if len(UltraGlobals.plants) < PLANT_POPULATION_LIMIT and time() - self.reproduction_timer > 5 and self.energy > self.maxfitness*0.5:
 				self.energy -= self.maxfitness/4 #A plant may reproduce at the cost of energy

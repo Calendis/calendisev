@@ -372,7 +372,6 @@ def main():
 					UltraGlobals.organisms.append(loaded_creature)
 					creature_loaded = False
 
-
 				for button in buttons:
 					if pygame.Rect.colliderect(pygame.Rect(button.x, button.y, button.width, button.height), (pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)) == 1:
 						button.activate()
@@ -433,7 +432,7 @@ def main():
 			elif organism.y < 0+organism.size and organism.yspeed < 0:
 				organism.yspeed *= -1
 
-			if organism.__class__ == Animal:
+			'''if organism.__class__ == Animal:
 				for organism2 in UltraGlobals.organisms:
 					if organism2.__class__ == Plant:
 						if pygame.Rect.colliderect(organism.hitbox, organism2.hitbox) == 1:
@@ -458,7 +457,44 @@ def main():
 							elif pygame.Rect.colliderect(organism.view, organism2.hitbox) == 1:
 								if organism.gender != organism2.gender and organism.fitness > organism.maxfitness*0.75 and organism2.fitness > organism2.maxfitness*0.75:
 									organism.target = organism2 #Allows organisms to target each other for mating if...
-									organism2.target = organism #...they are opposite sex and have enough energy
+									organism2.target = organism #...they are opposite sex and have enough energy'''
+
+			if organism.__class__ == Animal:
+				for organism2 in UltraGlobals.organisms:
+					if organism != organism2:
+						if pygame.Rect.colliderect(organism.view, organism2.hitbox) == 1:
+							organism.sensory_input["organism"] = organism2
+							#print("It sees!")
+
+							if organism.targeter == organism2:
+								organism.can_see_targeter = True
+								#print("It sees back!")
+
+						if abs(organism.trait_value-organism2.trait_value) < 2000 and organism2.__class__ == Animal and organism.gender != organism2.gender and organism.fitness > organism.maxfitness*0.75 and organism2.fitness > organism2.maxfitness*0.75:
+							organism.mating_target = organism2
+							#print("It yearns!")
+
+						if pygame.Rect.colliderect(organism.hitbox, organism2.hitbox) == 1:
+							if organism.target == organism2:
+								#print("It consumes!")
+								if organism2.dormant:
+									organism.energy += (0.5+organism.poison)
+								else:
+									organism.energy += (6+organism.poison)
+									organism.fitness += (2+organism.poison)
+								organism.fitness -= organism2.poison
+								organism2.fitness -= (6+organism.poison)
+						
+							if organism.mating_target == organism2:
+								#print("It loves!")
+								organism.reproduce((organism.size+organism2.size)/2, 
+									(organism.maxspeed+organism2.maxspeed)/2, 
+									(organism.maxfitness+organism2.maxfitness)/2, 
+									(organism.insulation+organism2.insulation)/2, 
+									(organism.waterproofing+organism2.waterproofing)/2, 
+									(organism.mutability+organism2.mutability)/2,
+									(organism.aggressiveness+organism2.aggressiveness)/2,
+									(organism.defensiveness+organism2.defensiveness)/2)
 
 		try:
 			speciestext = oxygen_bold_font.render(info_target.name,1,(0,0,0)) #Renders text, but does not draw it
@@ -473,6 +509,7 @@ def main():
 			waterproofingtext = oxygen_font.render("Waterproofing: "+str(round(info_target.waterproofing,)),1,(0,0,0))
 			mutabilitytext = oxygen_font.render("Mutability: "+str(round(info_target.mutability, 1)),1,(0,0,0))
 			poisontext = oxygen_font.render("Poison: "+str(round(info_target.poison, 1)),1,(0,0,0))
+			traitvaluetext = oxygen_font.render("Trait Value: "+str(info_target.trait_value),1,(0,0,0))
 		except:
 			speciestext = oxygen_bold_font.render("Click on an organism for statistics...",1,(0,0,0))
 
@@ -562,6 +599,7 @@ def main():
 			screen.blit(waterproofingtext, (810,185))
 			screen.blit(mutabilitytext, (810,205))
 			screen.blit(poisontext, (810,225))
+			screen.blit(traitvaluetext, (810,245))
 		except:
 			screen.blit(speciestext, (810,5))
 
