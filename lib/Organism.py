@@ -9,7 +9,7 @@ from lib.Name import * #Imports lists from Name.py
 
 import pygame #Imports pygame library
 
-from lib.Helper import nonzero #Imports functions from Helper.py
+#Imports functions from Helper.py
 from lib.Helper import nonzerov
 from lib.Helper import alfour
 from lib.Helper import customlimit
@@ -21,7 +21,7 @@ from lib import UltraGlobals #Imports organism lists
 PLANT_POPULATION_LIMIT = 500 #This limit is arbitrary and is to keep the simulation running smoothly. I am using 500 on my chromebook,
 #so feel free to adjust this based on your CPU power.
 
-ANIMAL_POPULATION_LIMIT = 50 #The limit is lesser for animals, since they are more cpu-intensive.
+ANIMAL_POPULATION_LIMIT = 50 #The limit is lesser for animals, since they are much more cpu-intensive.
 
 class Organism(): #Base class for all organisms
 	"""docstring for Organism"""
@@ -47,7 +47,7 @@ class Organism(): #Base class for all organisms
 		self.aggressiveness = round(random()*100)
 		self.defensiveness = 100 - self.aggressiveness
 
-		self.energy = self.maxfitness*2
+		self.energy = self.maxfitness
 		self.lifespan = round(((self.maxfitness)*self.size)*0.6)
 
 		self.seerange = randint(round(self.size*2), round(self.size*2))*4	
@@ -62,6 +62,8 @@ class Organism(): #Base class for all organisms
 			self.gender = False
 		else:
 			self.gender = True
+
+		self.reproduction_timer = time()
 
 		self.target = "other"
 		self.targeter = "other"
@@ -79,14 +81,10 @@ class Organism(): #Base class for all organisms
 		self.trait_value = round(self.trait_value)
 
 	def update(self): #Function that performs basic tasks on the organism, such as moving
+
 		'''if abs(self.xspeed) > self.maxspeed or abs(self.yspeed) > self.maxspeed:
 			self.colour = (255,0,255)#Change to magenta if speed is malfunctioning. (Useful for debugging)
 			print("Speed error on "+str(self))
-			print(self.xspeed)
-			print(self.yspeed)
-			print(self.maxspeed)
-		else:
-			print("Speed normal on "+str(self))
 			print(self.xspeed)
 			print(self.yspeed)
 			print(self.maxspeed)'''
@@ -117,11 +115,11 @@ class Organism(): #Base class for all organisms
 		self.xspeed += self.xaccel #Speed is updated with the acceleration
 		self.yspeed += self.yaccel
 
-		self.xspeed = customlimit(self.xspeed, self.maxspeed) #Speed is limited to the max speed
-		self.yspeed = customlimit(self.yspeed, self.maxspeed)
-
 		if self.__class__ == Animal: #Speed must never be zero if the organism is an animal
 			self.xspeed, self.yspeed = nonzerov(self.xspeed, self.yspeed)
+
+		self.xspeed = customlimit(self.xspeed, self.maxspeed) #Speed is limited to the max speed
+		self.yspeed = customlimit(self.yspeed, self.maxspeed)
 
 		if self.sensory_input["organism"] != "other":
 			if self.name != self.sensory_input["organism"].name and self.aggressiveness - self.sensory_input["organism"].size - self.sensory_input["organism"].defensiveness > 25:
@@ -242,18 +240,34 @@ class Animal(Organism): #Class for animal
 		self.mutate() #Mutates the animal
 
 	def reproduce(self, rsize, rmaxspeed, rmaxfitness, rinsulation, rwaterproofing, rmutability, ragro, rdef):
-		if len(UltraGlobals.animals) < ANIMAL_POPULATION_LIMIT: #The animal can reproduce if this function is called...
-			self.fitness -= self.maxfitness/2 #...and there are fewer organsims than the limit
+		if time() - self.reproduction_timer > 5:
+			if len(UltraGlobals.animals) < ANIMAL_POPULATION_LIMIT: #The animal can reproduce if this function is called...
+				self.fitness -= self.maxfitness/2 #...and there are fewer organsims than the limit
 
-			offspring = CallableAnimal(self.colour, self.x, self.y, rsize, rmaxspeed, rmaxfitness, rinsulation, rwaterproofing, rmutability, ragro, rdef, self.generation, self.name, self.colourmod)
-			UltraGlobals.organisms.append(offspring) #Creates another animal based off of itself
-			UltraGlobals.animals.append(offspring)
-			self.target = False
-			self.targeter = False
-			self.flee_target = False
-			self.mating_target = False
+				offspring = CallableAnimal(self.colour, self.x, self.y, rsize, rmaxspeed, rmaxfitness, rinsulation, rwaterproofing, rmutability, ragro, rdef, self.generation, self.name, self.colourmod)
+				UltraGlobals.organisms.append(offspring) #Creates another animal based off of itself
+				UltraGlobals.animals.append(offspring)
+				self.target = False
+				self.can_see_targeter = False
+				self.targeter = False
+				self.flee_target = False
+				self.mating_target = False
+			else:
+				self.fitness += self.maxfitness/2
+				self.energy += self.maxfitness/2
 
-class CallableAnimal(Animal): #An Animal class that takes more arguements. Needed for reproduction
+				self.fitness = customlimit(self.fitness, self.maxfitness)
+				self.energy = customlimit(self.energy, self.maxfitness)
+
+				self.target = False
+				self.can_see_targeter = False
+				self.targeter = False
+				self.flee_target = False
+				self.mating_target = False
+				self.reproduction_timer = time()
+				#Rewards the animal if it attempts to reproduce but there is no more room
+
+class CallableAnimal(Animal): #An Animal class that takes more arguments. Needed for reproduction
 	"""docstring for CallableAnimal"""
 	def __init__(self, colour, x, y, size, maxspeed, maxfitness, insulation, waterproofing, mutability, aggressiveness, defensiveness, generation, name, colourmod):
 		super(CallableAnimal, self).__init__(colour, x, y)
@@ -268,7 +282,6 @@ class CallableAnimal(Animal): #An Animal class that takes more arguements. Neede
 		self.mutability = mutability
 		self.aggressiveness = aggressiveness
 		self.defensiveness = defensiveness
-
 		self.generation = generation
 		self.name = name
 		self.colourmod = self.colourmod
@@ -285,8 +298,6 @@ class Plant(Organism): #Class for plants
 		self.x = x
 		self.y = y
 
-		self.reproduction_timer = time()
-
 		self.mutate()
 
 		self.maxspeed = 0
@@ -298,12 +309,23 @@ class Plant(Organism): #Class for plants
 
 				self.fitness += 0.5
 
-			if len(UltraGlobals.plants) < PLANT_POPULATION_LIMIT and time() - self.reproduction_timer > 5 and self.energy > self.maxfitness*0.5:
-				self.energy -= self.maxfitness/4 #A plant may reproduce at the cost of energy
-				offspring = CallablePlant(self.colour, self.x, self.y, self.seedrange, self.insulation, self.waterproofing, self.mutability, self.size, self.maxfitness, self.poison, self.hitbox, self.generation, self.name, self.colourmod)
-				UltraGlobals.organisms.append(offspring)
-				UltraGlobals.plants.append(offspring)
-				self.reproduction_timer = time()
+			if time() - self.reproduction_timer > 5:
+				if len(UltraGlobals.plants) < PLANT_POPULATION_LIMIT:
+					self.energy -= self.maxfitness/4 #A plant may reproduce at the cost of energy
+					offspring = CallablePlant(self.colour, self.x, self.y, self.seedrange, self.insulation, self.waterproofing, self.mutability, self.size, self.maxfitness, self.poison, self.hitbox, self.generation, self.name, self.colourmod)
+					UltraGlobals.organisms.append(offspring)
+					UltraGlobals.plants.append(offspring)
+					self.reproduction_timer = time()
+
+				else:
+					self.energy += self.maxfitness/4
+					self.fitness += self.maxfitness/4
+
+					self.fitness = customlimit(self.fitness, self.maxfitness)
+					self.energy = customlimit(self.fitness, self.maxfitness)
+
+					self.reproduction_timer = time()
+					#Rewards the plant if it tries to reproduce but there is no more room
 
 class CallablePlant(Plant): #Plant class that takes more arguements, needed for reproduction
 	"""docstring for CallablePlant"""
@@ -318,7 +340,9 @@ class CallablePlant(Plant): #Plant class that takes more arguements, needed for 
 		self.mutability = mutability
 		self.size = size
 		self.maxfitness = maxfitness
+		
 		self.poison = poison
+
 		self.hitbox = hitbox
 		self.x += binaps(self.size/2)
 		self.y += binaps(self.size/2)

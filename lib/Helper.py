@@ -69,9 +69,9 @@ def alfour(x):
 
 def customlimit(x, y):#limits x to negative y and y
 	if x > y:
-		x = y
-	elif x < (0-y):
-		x = -y
+		return y
+	elif x < -y:
+		return -y
 	return x
 
 def binaps(x):
@@ -86,4 +86,4 @@ def genderfromboolean(bool):
 	elif bool == True:
 		return "Female"
 	else:
-		return "Unknown"
+		return "Other"

@@ -6,8 +6,8 @@ from pygame.locals import *
 
 from random import randint #A function that generates random integers
 
-from math import sin #Imports a sine function
-from math import log #Imports logarithm function
+from math import sin
+from math import log
 
 from time import time #Unix time module
 
@@ -16,7 +16,6 @@ import shelve #Library for saving/loading data
 import os.path #Library for handling of filepaths based on operating system
 
 from lib.Helper import tempcontrol #Import various functions from a script
-
 from lib.Helper import nonzero
 from lib.Helper import genderfromboolean
 from lib.Helper import vcolourcontrol
@@ -36,7 +35,7 @@ oxygen_font = pygame.font.Font(oxygen_reg_path, 12)
 oxygen_bold_font = pygame.font.Font(oxygen_bold_path, 14)
 
 
-screen_size = (800, 600) #Define the screen size, which is 1100x600
+screen_size = (800, 600) #Define the screen size, which is 1300x600
 screen_size_including_gui = (1300, 600)
 
 screen = pygame.display.set_mode(screen_size_including_gui) #Create the pygame window
@@ -240,6 +239,8 @@ def main():
 	global creature_loaded
 	global loaded_creature
 
+	refresh = True
+
 	loadbox = False
 	savebox = False
 
@@ -323,6 +324,12 @@ def main():
 							show_hitboxes = False
 						elif not show_hitboxes:
 							show_hitboxes = True
+				if event.key == K_r:
+					if not loadbox and not savebox and not loadcreaturebox:
+						if refresh: #Toggles refresh
+							refresh = False
+						elif not refresh:
+							refresh = True
 				if event.key == K_k: #Toggles the calculate_extras variable when k is pressed
 					if not loadbox and not savebox and not loadcreaturebox:
 						if calculate_extras:
@@ -399,8 +406,6 @@ def main():
 			if calculate_extras: #Calculates some things
 				if organism.name not in averaging_list:
 					averaging_list.append(organism.name)
-
-							
 
 			if organism.energy < 1: #Slowly kills an organism if it runs out of energy
 				organism.fitness -= 1	
@@ -496,6 +501,14 @@ def main():
 									(organism.aggressiveness+organism2.aggressiveness)/2,
 									(organism.defensiveness+organism2.defensiveness)/2)
 
+			if organism.dead == True: #Removes dead organisms from the list and deletes their reference
+				UltraGlobals.organisms.remove(organism)
+				if organism in UltraGlobals.animals and organism.__class__ == Animal:
+					UltraGlobals.animals.remove(organism)
+				elif organism in UltraGlobals.plants and organism.__class__ == Plant:
+					UltraGlobals.plants.remove(organism)
+				del(organism)
+
 		try:
 			speciestext = oxygen_bold_font.render(info_target.name,1,(0,0,0)) #Renders text, but does not draw it
 			typetext = oxygen_font.render("Type: "+str(class_string(info_target.__class__)),1,(0,0,0))
@@ -527,89 +540,82 @@ def main():
 			loadcreature_prompt_text = oxygen_bold_font.render("Enter name of creature to load:",1,(0,0,0))
 
 		#Drawing Below
-		screen.fill((colourcontrol(temperature*5), colourcontrol(100-nonzero(temperature)), colourcontrol(100-temperature*5)))
-		#Fills the screen with a colour based off of the temperature
+		if refresh:
+			screen.fill((colourcontrol(temperature*5), colourcontrol(100-nonzero(temperature)), colourcontrol(100-temperature*5)))
+			#Fills the screen with a colour based off of the temperature
 
-		for organism in UltraGlobals.organisms: #Iterates over the organisms and draws them
-			pygame.draw.circle(screen, vcolourcontrol((organism.colour)), (round(organism.x), round(organism.y)), round(organism.size/3)+2)
+			for organism in UltraGlobals.organisms: #Iterates over the organisms and draws them
+				pygame.draw.circle(screen, vcolourcontrol((organism.colour)), (round(organism.x), round(organism.y)), round(organism.size/3)+2)
 
-			if show_hitboxes: #Draws hitboxes if show_hitboxes is True
-				pygame.draw.line(screen, (255,0,0), (organism.hitbox.x, organism.hitbox.y), (organism.hitbox.x+organism.hitbox.width, organism.hitbox.y))
-				pygame.draw.line(screen, (255,0,0), (organism.hitbox.x+organism.hitbox.width, organism.hitbox.y), (organism.hitbox.x+organism.hitbox.width, organism.hitbox.y+organism.hitbox.height))
-				pygame.draw.line(screen, (255,0,0), (organism.hitbox.x+organism.hitbox.width, organism.hitbox.y+organism.hitbox.height), (organism.hitbox.x, organism.hitbox.y+organism.hitbox.height))
-				pygame.draw.line(screen, (255,0,0), (organism.hitbox.x, organism.hitbox.y+organism.hitbox.height), (organism.hitbox.x, organism.hitbox.y))
+				if show_hitboxes: #Draws hitboxes if show_hitboxes is True
+					pygame.draw.line(screen, (255,0,0), (organism.hitbox.x, organism.hitbox.y), (organism.hitbox.x+organism.hitbox.width, organism.hitbox.y))
+					pygame.draw.line(screen, (255,0,0), (organism.hitbox.x+organism.hitbox.width, organism.hitbox.y), (organism.hitbox.x+organism.hitbox.width, organism.hitbox.y+organism.hitbox.height))
+					pygame.draw.line(screen, (255,0,0), (organism.hitbox.x+organism.hitbox.width, organism.hitbox.y+organism.hitbox.height), (organism.hitbox.x, organism.hitbox.y+organism.hitbox.height))
+					pygame.draw.line(screen, (255,0,0), (organism.hitbox.x, organism.hitbox.y+organism.hitbox.height), (organism.hitbox.x, organism.hitbox.y))
 
-				pygame.draw.line(screen, (255,0,0), (organism.view.x, organism.view.y), (organism.view.x+organism.view.width, organism.view.y))
-				pygame.draw.line(screen, (255,0,0), (organism.view.x+organism.view.width, organism.view.y), (organism.view.x+organism.view.width, organism.view.y+organism.view.height))
-				pygame.draw.line(screen, (255,0,0), (organism.view.x+organism.view.width, organism.view.y+organism.view.height), (organism.view.x, organism.view.y+organism.view.height))
-				pygame.draw.line(screen, (255,0,0), (organism.view.x, organism.view.y+organism.view.height), (organism.view.x, organism.view.y))
+					pygame.draw.line(screen, (255,0,0), (organism.view.x, organism.view.y), (organism.view.x+organism.view.width, organism.view.y))
+					pygame.draw.line(screen, (255,0,0), (organism.view.x+organism.view.width, organism.view.y), (organism.view.x+organism.view.width, organism.view.y+organism.view.height))
+					pygame.draw.line(screen, (255,0,0), (organism.view.x+organism.view.width, organism.view.y+organism.view.height), (organism.view.x, organism.view.y+organism.view.height))
+					pygame.draw.line(screen, (255,0,0), (organism.view.x, organism.view.y+organism.view.height), (organism.view.x, organism.view.y))
 
 
-			if organism.dead == True: #Removes dead organisms from the list and deletes their reference
-				UltraGlobals.organisms.remove(organism)
-				if organism in UltraGlobals.animals and organism.__class__ == Animal:
-					UltraGlobals.animals.remove(organism)
-				elif organism in UltraGlobals.plants and organism.__class__ == Plant:
-					UltraGlobals.plants.remove(organism)
-				del(organism)
+			#Draws the gui thing
+			pygame.draw.rect(screen, (255,255,230), (801,0,399,470))
+			pygame.draw.rect(screen, (255,245,210), (1101,0,199,470))
+			pygame.draw.rect(screen, (60,60,60), (801,470,500,130))
 
-		#Draws the gui thing
-		pygame.draw.rect(screen, (255,255,230), (801,0,399,470))
-		pygame.draw.rect(screen, (255,245,210), (1101,0,199,470))
-		pygame.draw.rect(screen, (60,60,60), (801,470,500,130))
+			for button in buttons:
+				pygame.draw.rect(screen, (button.colour), (button.x, button.y, button.width, button.height))
+				screen.blit(button.text, (button.x, button.y))
 
-		for button in buttons:
-			pygame.draw.rect(screen, (button.colour), (button.x, button.y, button.width, button.height))
-			screen.blit(button.text, (button.x, button.y))
+			#Graphs things
+			#pygame.draw.rect(graph_screen, (colourcontrol(255-organism_count),colourcontrol(0+organism_count),0), (placing,graph_screen_size[1]-organism_count/(600/130),1,organism_count/(600/130)))
 
-		#Graphs things
-		pygame.draw.rect(graph_screen, (colourcontrol(255-organism_count),colourcontrol(0+organism_count),0), (placing,graph_screen_size[1]-organism_count/(600/130),1,organism_count/(600/130)))
+			screen.blit(graph_screen, (806, 475))
+			placing += 1
+			if placing > 499:
+				placing = 0
+				graph_screen.fill((0,0,0))
 
-		screen.blit(graph_screen, (806, 475))
-		placing += 1
-		if placing > 499:
-			placing = 0
-			graph_screen.fill((0,0,0))
+			#Draws boxed when buttons are clicked
+			if loadbox:
+				pygame.draw.rect(screen, (255,255,210), (806,screen_size[1]-200,489,190))
+				screen.blit(load_prompt_text, (808,screen_size[1]-200))
+				screen.blit(load_text_input.get_surface(), (980,screen_size[1]-197))
+			if savebox:
+				pygame.draw.rect(screen, (255,255,210), (806,screen_size[1]-200,489,190))
+				screen.blit(save_prompt_text, (808,screen_size[1]-200))
+				screen.blit(save_text_input.get_surface(), (980,screen_size[1]-197))
+			if loadcreaturebox:
+				pygame.draw.rect(screen, (255,255,210), (806,screen_size[1]-200,489,190))
+				screen.blit(loadcreature_prompt_text, (808,screen_size[1]-200))
+				screen.blit(loadcreature_text_input.get_surface(), (1020,screen_size[1]-197))
 
-		#Draws boxed when buttons are clicked
-		if loadbox:
-			pygame.draw.rect(screen, (255,255,210), (806,screen_size[1]-200,489,190))
-			screen.blit(load_prompt_text, (808,screen_size[1]-200))
-			screen.blit(load_text_input.get_surface(), (980,screen_size[1]-197))
-		if savebox:
-			pygame.draw.rect(screen, (255,255,210), (806,screen_size[1]-200,489,190))
-			screen.blit(save_prompt_text, (808,screen_size[1]-200))
-			screen.blit(save_text_input.get_surface(), (980,screen_size[1]-197))
-		if loadcreaturebox:
-			pygame.draw.rect(screen, (255,255,210), (806,screen_size[1]-200,489,190))
-			screen.blit(loadcreature_prompt_text, (808,screen_size[1]-200))
-			screen.blit(loadcreature_text_input.get_surface(), (1020,screen_size[1]-197))
+			#Draws gui elements
+			try:
+				screen.blit(speciestext, (810,5)) #Draws text
+				screen.blit(typetext, (810,25))
+				screen.blit(sizetext, (810, 45))
+				screen.blit(gendertext, (810,65))
+				screen.blit(generationtext, (810,85))
+				screen.blit(fitnesstext, (810,105))
+				screen.blit(energytext, (810,125))
+				screen.blit(lifetext, (810,145))
+				screen.blit(insulationtext, (810,165))
+				screen.blit(waterproofingtext, (810,185))
+				screen.blit(mutabilitytext, (810,205))
+				screen.blit(poisontext, (810,225))
+				screen.blit(traitvaluetext, (810,245))
+			except:
+				screen.blit(speciestext, (810,5))
 
-		#Draws gui elements
-		try:
-			screen.blit(speciestext, (810,5)) #Draws text
-			screen.blit(typetext, (810,25))
-			screen.blit(sizetext, (810, 45))
-			screen.blit(gendertext, (810,65))
-			screen.blit(generationtext, (810,85))
-			screen.blit(fitnesstext, (810,105))
-			screen.blit(energytext, (810,125))
-			screen.blit(lifetext, (810,145))
-			screen.blit(insulationtext, (810,165))
-			screen.blit(waterproofingtext, (810,185))
-			screen.blit(mutabilitytext, (810,205))
-			screen.blit(poisontext, (810,225))
-			screen.blit(traitvaluetext, (810,245))
-		except:
-			screen.blit(speciestext, (810,5))
+			if calculate_extras:
+				screen.blit(averageinsulationtext, (810,325))
 
-		if calculate_extras:
-			screen.blit(averageinsulationtext, (810,325))
-
-		screen.blit(temperaturetext, (1170,265))
-		screen.blit(humiditytext, (1170,285))
+			screen.blit(temperaturetext, (1170,265))
+			screen.blit(humiditytext, (1170,285))
  
-		pygame.display.flip() #Updates screen
+			pygame.display.flip() #Updates screen
 		clock.tick(60) #Framerate
 
 	pygame.quit() #Quits if all loops are exited
