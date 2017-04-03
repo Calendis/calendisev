@@ -1,5 +1,5 @@
 #My second attempt at programming an evolution simulator
-#Start date 29 Nov, 2016
+#Start date 29 Nov, 2016. Prototype dates back to Oct 25, 2016
 
 import pygame #Import pygame, and variables
 from pygame.locals import *
