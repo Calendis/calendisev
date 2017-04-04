@@ -80,7 +80,6 @@ class SaveButton(Button):
 
 		loaded_simulation["organisms"] = UltraGlobals.organisms
 		loaded_simulation["temperature"] = temperature
-		loaded_simulation["humidity"] = humidity
 
 class SaveCreature(Button):
 	"""docstring for SaveCreature"""
@@ -135,7 +134,6 @@ class LoadButton(Button):
 
 	def true_activate(self, text):
 		global temperature
-		global humidity
 		global load_text_input
 
 		load_text_input = pygame_textinput.TextInput(oxygen_reg_path, 20, True)
@@ -156,7 +154,6 @@ class LoadButton(Button):
 					UltraGlobals.animals.append(organism)
 
 			temperature = loaded_simulation["temperature"]
-			humidity = loaded_simulation["humidity"]
 		except:
 			print("Saved simulation \""+text+"\" not found.")
 
@@ -224,12 +221,8 @@ def class_string(Class): #A function that returns a simplified string from a cla
 global temperature
 temperature = tempcontrol(randint(-40,20) + randint(0,60))/2 #Sets the temperature of the environment
 
-global humidity
-humidity = tempcontrol(randint(-40,20) + randint(0,60))/2
-
 def main():
 	global temperature
-	global humidity
 	global loadbox
 	global savebox
 	global load_text_input
@@ -259,9 +252,6 @@ def main():
 
 	rising = False #Variables to do with temperature control
 	falling = False
-
-	humidity_rising = False #Variables to do with humidity control
-	humidity_falling = False
 
 	show_hitboxes = False #Controls whether hitboxes are drawn or not
 
@@ -340,22 +330,13 @@ def main():
 					rising = True
 				if event.key == K_DOWN:
 					falling = True
-				if event.key == K_e:
-					if not loadbox and not savebox and not loadcreaturebox:
-						humidity_rising = True
-				if event.key == K_d:
-					if not loadbox and not savebox and not loadcreaturebox:
-						humidity_falling = True
 
 			if event.type == pygame.KEYUP:
 				if event.key == K_UP:
 					rising = False
 				if event.key == K_DOWN:
 					falling = False
-				if event.key == K_e:
-					humidity_rising = False
-				if event.key == K_d:
-					humidity_falling = False
+
 			if event.type == MOUSEBUTTONDOWN:
 				for organism in UltraGlobals.organisms: #Detects organisms underneath the cursor when clicked
 					if pygame.Rect.colliderect(organism.hitbox, (pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)) == 1:
@@ -394,10 +375,6 @@ def main():
 			temperature += 1
 		if falling == True:
 			temperature -= 1
-		if humidity_rising:
-			humidity -= 1
-		if humidity_falling:
-			humidity += 1
 
 		averaging_list = []
 		for organism in UltraGlobals.organisms: #Iterates over every object in the organisms list
@@ -420,14 +397,6 @@ def main():
 				if organism.__class__ == Plant:
 					organism.dormant = False
 
-			if round(humidity) not in organism.waterrange:
-				if organism.__class__ == Animal:
-					organism.fitness -= 5
-				elif organism.__class__ == Plant:
-					organism.dormant = True
-					organism.energy -= 5
-
-
 			if organism.x > screen_size[0]-organism.size and organism.xspeed > 0:
 				organism.xspeed *= -1 #Reverses an organisms direction if it tries to move out of bounds
 			elif organism.x < 0 and organism.xspeed < 0:
@@ -436,33 +405,6 @@ def main():
 				organism.yspeed *= -1
 			elif organism.y < 0+organism.size and organism.yspeed < 0:
 				organism.yspeed *= -1
-
-			'''if organism.__class__ == Animal:
-				for organism2 in UltraGlobals.organisms:
-					if organism2.__class__ == Plant:
-						if pygame.Rect.colliderect(organism.hitbox, organism2.hitbox) == 1:
-							organism2.fitness -= (6+organism.poison)
-							#Lets animals eat plants
-							if organism2.dormant:
-								organism.energy += (0.5+organism.poison)
-							else:
-								organism.energy += (6+organism.poison)
-								organism.fitness += (2+organism.poison)
-							organism.fitness -= organism2.poison #Deactivate this line if you do not wish to have poison
-
-						elif pygame.Rect.colliderect(organism.view, organism2.hitbox) == 1:
-							organism.target = organism2 #Allows animals to target plants for eating
-
-					elif organism2.__class__ == Animal:
-						if organism2 != organism:
-							if pygame.Rect.colliderect(organism.hitbox, organism2.hitbox) == 1:
-								if organism.gender != organism2.gender and organism.fitness > organism.maxfitness*0.75 and organism2.fitness > organism2.maxfitness*0.75:
-										organism.reproduce((organism.size+organism2.size)/2, (organism.maxspeed+organism2.maxspeed)/2, (organism.maxfitness+organism2.maxfitness)/2, (organism.insulation+organism2.insulation)/2, (organism.waterproofing+organism2.waterproofing)/2, (organism.mutability+organism2.mutability)/2)
-
-							elif pygame.Rect.colliderect(organism.view, organism2.hitbox) == 1:
-								if organism.gender != organism2.gender and organism.fitness > organism.maxfitness*0.75 and organism2.fitness > organism2.maxfitness*0.75:
-									organism.target = organism2 #Allows organisms to target each other for mating if...
-									organism2.target = organism #...they are opposite sex and have enough energy'''
 
 			if organism.__class__ == Animal:
 				for organism2 in UltraGlobals.organisms:
@@ -496,7 +438,6 @@ def main():
 									(organism.maxspeed+organism2.maxspeed)/2, 
 									(organism.maxfitness+organism2.maxfitness)/2, 
 									(organism.insulation+organism2.insulation)/2, 
-									(organism.waterproofing+organism2.waterproofing)/2, 
 									(organism.mutability+organism2.mutability)/2,
 									(organism.aggressiveness+organism2.aggressiveness)/2,
 									(organism.defensiveness+organism2.defensiveness)/2)
@@ -519,7 +460,6 @@ def main():
 			energytext = oxygen_font.render("Energy: "+str(round(info_target.energy, 1)),1,(0,0,0))
 			lifetext = oxygen_font.render("Time left: "+str(info_target.lifespan),1,(0,0,0))
 			insulationtext = oxygen_font.render("Insulation: "+str(round(info_target.insulation, 1)),1,(0,0,0))
-			waterproofingtext = oxygen_font.render("Waterproofing: "+str(round(info_target.waterproofing,)),1,(0,0,0))
 			mutabilitytext = oxygen_font.render("Mutability: "+str(round(info_target.mutability, 1)),1,(0,0,0))
 			poisontext = oxygen_font.render("Poison: "+str(round(info_target.poison, 1)),1,(0,0,0))
 			traitvaluetext = oxygen_font.render("Trait Value: "+str(info_target.trait_value),1,(0,0,0))
@@ -530,7 +470,6 @@ def main():
 			averageinsulationtext = oxygen_font.render(str(averaging_list),1,(0,0,0))
 
 		temperaturetext = oxygen_font.render("Temperature: "+str(round(temperature,1)),1,(0,0,0))
-		humiditytext = oxygen_font.render("Humidity: "+str(-humidity),1,(0,0,0))
 
 		if loadbox:
 			load_prompt_text = oxygen_bold_font.render("Enter name of file to load:",1,(0,0,0))
@@ -602,7 +541,6 @@ def main():
 				screen.blit(energytext, (810,125))
 				screen.blit(lifetext, (810,145))
 				screen.blit(insulationtext, (810,165))
-				screen.blit(waterproofingtext, (810,185))
 				screen.blit(mutabilitytext, (810,205))
 				screen.blit(poisontext, (810,225))
 				screen.blit(traitvaluetext, (810,245))
@@ -613,7 +551,6 @@ def main():
 				screen.blit(averageinsulationtext, (810,325))
 
 			screen.blit(temperaturetext, (1170,265))
-			screen.blit(humiditytext, (1170,285))
  
 			pygame.display.flip() #Updates screen
 		clock.tick(60) #Framerate

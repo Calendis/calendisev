@@ -20,14 +20,12 @@
   * Energy
   * Lifespan
   * Eating
-  * Waterproofing **(to-be-removed)**
   * Aggression value
   * Defensiveness value
   * Predation on plants, and other animals
 
 * Environment
   * Temperature
-  * Humidity **(to-be-removed)**
 
 * Meta
   * Saving/loading simulations

@@ -53,7 +53,6 @@ class Organism(): #Base class for all organisms
 		self.seerange = randint(round(self.size*2), round(self.size*2))*4	
 		
 		self.insulation = random()*10
-		self.waterproofing = random()*10
 
 		self.mutability = random()*2
 		self.gender = randint(0,1)
@@ -210,12 +209,6 @@ class Organism(): #Base class for all organisms
 			self.insulation = 0
 		self.temprange = range(round(50-(6*self.insulation))-40,round(50-(6*self.insulation)))
 
-		#Mutates the waterproofing value of the organism...
-		self.waterproofing += randint(round(-self.mutability*10),round(self.mutability*10))/10
-		if self.waterproofing < 0:
-			self.waterproofing = 0
-		self.waterrange = range(round(50-(6*self.waterproofing))-40,round(50-(6*self.waterproofing)))
-
 		#Mutates the seedrange value if the organism is a plant...
 		if self.__class__ == Plant or self.__class__ == CallablePlant:
 			self.seedrange += randint(round(-self.mutability),round(self.mutability))
@@ -239,12 +232,12 @@ class Animal(Organism): #Class for animal
 
 		self.mutate() #Mutates the animal
 
-	def reproduce(self, rsize, rmaxspeed, rmaxfitness, rinsulation, rwaterproofing, rmutability, ragro, rdef):
+	def reproduce(self, rsize, rmaxspeed, rmaxfitness, rinsulation, rmutability, ragro, rdef):
 		if time() - self.reproduction_timer > 5:
 			if len(UltraGlobals.animals) < ANIMAL_POPULATION_LIMIT: #The animal can reproduce if this function is called...
 				self.fitness -= self.maxfitness/2 #...and there are fewer organsims than the limit
 
-				offspring = CallableAnimal(self.colour, self.x, self.y, rsize, rmaxspeed, rmaxfitness, rinsulation, rwaterproofing, rmutability, ragro, rdef, self.generation, self.name, self.colourmod)
+				offspring = CallableAnimal(self.colour, self.x, self.y, rsize, rmaxspeed, rmaxfitness, rinsulation, rmutability, ragro, rdef, self.generation, self.name, self.colourmod)
 				UltraGlobals.organisms.append(offspring) #Creates another animal based off of itself
 				UltraGlobals.animals.append(offspring)
 				self.target = False
@@ -269,7 +262,7 @@ class Animal(Organism): #Class for animal
 
 class CallableAnimal(Animal): #An Animal class that takes more arguments. Needed for reproduction
 	"""docstring for CallableAnimal"""
-	def __init__(self, colour, x, y, size, maxspeed, maxfitness, insulation, waterproofing, mutability, aggressiveness, defensiveness, generation, name, colourmod):
+	def __init__(self, colour, x, y, size, maxspeed, maxfitness, insulation, mutability, aggressiveness, defensiveness, generation, name, colourmod):
 		super(CallableAnimal, self).__init__(colour, x, y)
 		self.colour = colour
 		self.x = x
@@ -278,7 +271,6 @@ class CallableAnimal(Animal): #An Animal class that takes more arguments. Needed
 		self.maxspeed = maxspeed
 		self.maxfitness = maxfitness
 		self.insulation = insulation
-		self.waterproofing = waterproofing
 		self.mutability = mutability
 		self.aggressiveness = aggressiveness
 		self.defensiveness = defensiveness
@@ -312,7 +304,7 @@ class Plant(Organism): #Class for plants
 			if time() - self.reproduction_timer > 5:
 				if len(UltraGlobals.plants) < PLANT_POPULATION_LIMIT:
 					self.energy -= self.maxfitness/4 #A plant may reproduce at the cost of energy
-					offspring = CallablePlant(self.colour, self.x, self.y, self.seedrange, self.insulation, self.waterproofing, self.mutability, self.size, self.maxfitness, self.poison, self.hitbox, self.generation, self.name, self.colourmod)
+					offspring = CallablePlant(self.colour, self.x, self.y, self.seedrange, self.insulation, self.mutability, self.size, self.maxfitness, self.poison, self.hitbox, self.generation, self.name, self.colourmod)
 					UltraGlobals.organisms.append(offspring)
 					UltraGlobals.plants.append(offspring)
 					self.reproduction_timer = time()
@@ -329,14 +321,13 @@ class Plant(Organism): #Class for plants
 
 class CallablePlant(Plant): #Plant class that takes more arguements, needed for reproduction
 	"""docstring for CallablePlant"""
-	def __init__(self, colour, x, y, seedrange, insulation, waterproofing, mutability, size, maxfitness, poison, hitbox, generation, name, colourmod):
+	def __init__(self, colour, x, y, seedrange, insulation, mutability, size, maxfitness, poison, hitbox, generation, name, colourmod):
 		super(CallablePlant, self).__init__(colour, x, y)
 		self.colour = colour
 		self.x = x + binaps(self.seedrange)
 		self.y = y + binaps(self.seedrange)
 		self.seedrange = seedrange
 		self.insulation = insulation
-		self.waterproofing = waterproofing
 		self.mutability = mutability
 		self.size = size
 		self.maxfitness = maxfitness
