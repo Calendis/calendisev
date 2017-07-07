@@ -60,7 +60,12 @@ def nonzeror(x):
 def raisefromzero(x):
 	if x < 0.1:
 		x = 0.1
-	return x	
+	return x
+
+def raisefromn(x):
+	if x < 0:
+		x = 0
+	return x
 
 def alfour(x):
 	if x < 4:

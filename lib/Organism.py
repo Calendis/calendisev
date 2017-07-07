@@ -16,7 +16,7 @@ from lib.Helper import customlimit
 from lib.Helper import binaps
 from lib.Helper import raisefromzero
 
-from lib import UltraGlobals #Imports organism lists
+from lib import UltraGlobals #Imports organism lists and camera
 
 PLANT_POPULATION_LIMIT = 500 #This limit is arbitrary and is to keep the simulation running smoothly. I am using 500 on my chromebook,
 #so feel free to adjust this based on your CPU power.
@@ -36,7 +36,8 @@ class Organism(): #Base class for all organisms
 		self.yspeed = binaps(self.maxspeed / 4)
 		self.xaccel = 0
 		self.yaccel = 0
-		self.hitbox = pygame.Rect(self.x, self.y, self.size/3+2, self.size/3+2)
+		self.hitbox = pygame.Rect(self.x-self.size//3, self.y-self.size//3, self.size*2//3+2, self.size*2/3+2)
+		self.drawn_hitbox = pygame.Rect(self.x+UltraGlobals.camera.x-self.size//3, self.y+UltraGlobals.camera.y-self.size//3, self.size*2//3+2, self.size*2//3+2)
 		self.maxfitness = 175 * (self.size/2)
 		self.fitness = self.maxfitness/2
 		self.dead = False
@@ -76,8 +77,25 @@ class Organism(): #Base class for all organisms
 
 		self.sensory_input = {"temperature": 0 ,"organism": "other"}
 
-		self.trait_value = (((self.colour[0] + self.colour[1] + self.colour[2])/30)+(self.maxfitness/3)+self.poison + self.insulation) + (self.size+2)*10
+		self.previous_terrain_height = 0
+		self.terrain_height = 0
+		
+		self.terrain_type = "unknown"
+
+		self.aquatic = randint(0,1)
+
+		self.trait_value = ((((self.colour[0] + self.colour[1] + self.colour[2])/30)+(self.maxfitness/3)+self.poison + self.insulation) + (self.size+2)*10)+self.aquatic*500
 		self.trait_value = round(self.trait_value)
+
+	def reposition(self):
+		if self.x > 2000: #Teleports an organism to the map edges if it moves beyond
+			self.x = 2000
+		if  self.y > 2000:
+			self.y = 2000
+		if self.x < 0:
+			self.x = 0
+		if self.y < 0:
+			self.y  = 0
 
 	def update(self): #Function that performs basic tasks on the organism, such as moving
 
@@ -87,6 +105,19 @@ class Organism(): #Base class for all organisms
 			print(self.xspeed)
 			print(self.yspeed)
 			print(self.maxspeed)'''
+
+		if self.terrain_height < 0.13:
+			self.terrain_type = "water"
+		else:
+			self.terrain_type = "land"
+
+		if self.terrain_type == "water" and self.aquatic == False:
+			print("Drowning!")
+			self.fitness -= 5
+
+		if self.terrain_type == "land" and self.aquatic == True:
+			print("Fish out of water!")
+			self.fitness -= 5
 
 		self.fitness = customlimit(self.fitness, self.maxfitness)
 		self.energy = customlimit(self.energy, self.maxfitness)
@@ -101,15 +132,6 @@ class Organism(): #Base class for all organisms
 		
 		if self.fitness < 1 or self.lifespan < 0:
 			self.dead = True #Kills the organism if its fitness or lifespan variables go too low
-
-		if self.x > 800: #Teleports an organism to the screen edges if it moves beyond
-			self.x = 800
-		if  self.y > 600:
-			self.y = 600
-		if self.x < 0:
-			self.x = 0
-		if self.y < 0:
-			self.y  = 0
 		
 		self.xspeed += self.xaccel #Speed is updated with the acceleration
 		self.yspeed += self.yaccel
@@ -160,10 +182,16 @@ class Organism(): #Base class for all organisms
 				self.mating_target = False
 
 		if not self.dead:
-			self.x += self.xspeed #Updates the x and y positions with the speed, if the organism is alive
-			self.y += self.yspeed
+			self.x += self.xspeed - (round(self.terrain_height - self.previous_terrain_height, 1)) #Updates the x and y positions with the speed, if the organism is alive
+			self.y += self.yspeed - (round(self.terrain_height - self.previous_terrain_height, 1))
+
+			#self.x += self.xspeed
+			#self.y += self.yspeed
+
+		self.previous_terrain_height = self.terrain_height #Updates the previous terrain height
 		
-		self.hitbox = pygame.Rect(self.x-self.size/3, self.y-self.size/3, self.size*2/3+2, self.size*2/3+2)
+		self.hitbox = pygame.Rect(self.x-self.size//3, self.y-self.size//3, self.size*2//3+2, self.size*2//3+2)
+		self.drawn_hitbox = pygame.Rect(self.x+UltraGlobals.camera.x-self.size//3, self.y+UltraGlobals.camera.y-self.size//3, self.size*2//3+2, self.size*2//3+2)
 		#A rectangle object based on the organism's size and position
 
 		self.view = pygame.Rect(self.x-self.seerange/2, self.y-self.seerange/2, self.seerange, self.seerange)
@@ -217,7 +245,7 @@ class Organism(): #Base class for all organisms
 		self.poison += randint(round(-self.mutability),round(self.mutability))
 
 		#Mutates the mutability itself
-		self.mutability = raisefromzero(self.mutability+randint(round(-self.mutability*10),round(self.mutability*10))/10)
+		self.mutability = raisefromzero(self.mutability+randint(round(-self.mutability*10),round(self.mutability*10))/10)/2
 
 class Animal(Organism): #Class for animal
 	"""docstring for Animal"""
@@ -237,7 +265,22 @@ class Animal(Organism): #Class for animal
 			if len(UltraGlobals.animals) < ANIMAL_POPULATION_LIMIT: #The animal can reproduce if this function is called...
 				self.fitness -= self.maxfitness/2 #...and there are fewer organsims than the limit
 
-				offspring = CallableAnimal(self.colour, self.x, self.y, rsize, rmaxspeed, rmaxfitness, rinsulation, rmutability, ragro, rdef, self.generation, self.name, self.colourmod)
+				offspring = CallableAnimal(
+					self.colour,
+					self.x,
+					self.y,
+					rsize,
+					rmaxspeed,
+					rmaxfitness,
+					rinsulation,
+					rmutability,
+					ragro,
+					rdef,
+					self.generation,
+					self.name,
+					self.colourmod,
+					self.aquatic)
+
 				UltraGlobals.organisms.append(offspring) #Creates another animal based off of itself
 				UltraGlobals.animals.append(offspring)
 				self.target = False
@@ -262,7 +305,7 @@ class Animal(Organism): #Class for animal
 
 class CallableAnimal(Animal): #An Animal class that takes more arguments. Needed for reproduction
 	"""docstring for CallableAnimal"""
-	def __init__(self, colour, x, y, size, maxspeed, maxfitness, insulation, mutability, aggressiveness, defensiveness, generation, name, colourmod):
+	def __init__(self, colour, x, y, size, maxspeed, maxfitness, insulation, mutability, aggressiveness, defensiveness, generation, name, colourmod, aquatic):
 		super(CallableAnimal, self).__init__(colour, x, y)
 		self.colour = colour
 		self.x = x
@@ -277,6 +320,7 @@ class CallableAnimal(Animal): #An Animal class that takes more arguments. Needed
 		self.generation = generation
 		self.name = name
 		self.colourmod = self.colourmod
+		self.aquatic = aquatic
 
 		self.mutate()
 		self.__class__ = Animal #Changes the class of the CallableAnimal to Animal
@@ -297,14 +341,14 @@ class Plant(Organism): #Class for plants
 	def grow(self): #Function that lets plants grow and reproduce
 		if not self.dormant:
 			self.energy += 1
-			if self.energy >= self.maxfitness:
+			if self.energy >= self.maxfitness and not self.dormant:
 
 				self.fitness += 0.5
 
 			if time() - self.reproduction_timer > 5:
 				if len(UltraGlobals.plants) < PLANT_POPULATION_LIMIT:
 					self.energy -= self.maxfitness/4 #A plant may reproduce at the cost of energy
-					offspring = CallablePlant(self.colour, self.x, self.y, self.seedrange, self.insulation, self.mutability, self.size, self.maxfitness, self.poison, self.hitbox, self.generation, self.name, self.colourmod)
+					offspring = CallablePlant(self.colour, self.x, self.y, self.seedrange, self.insulation, self.mutability, self.size, self.maxfitness, self.poison, self.hitbox, self.generation, self.name, self.colourmod, self.aquatic)
 					UltraGlobals.organisms.append(offspring)
 					UltraGlobals.plants.append(offspring)
 					self.reproduction_timer = time()
@@ -321,7 +365,7 @@ class Plant(Organism): #Class for plants
 
 class CallablePlant(Plant): #Plant class that takes more arguements, needed for reproduction
 	"""docstring for CallablePlant"""
-	def __init__(self, colour, x, y, seedrange, insulation, mutability, size, maxfitness, poison, hitbox, generation, name, colourmod):
+	def __init__(self, colour, x, y, seedrange, insulation, mutability, size, maxfitness, poison, hitbox, generation, name, colourmod, aquatic):
 		super(CallablePlant, self).__init__(colour, x, y)
 		self.colour = colour
 		self.x = x + binaps(self.seedrange)
@@ -341,6 +385,8 @@ class CallablePlant(Plant): #Plant class that takes more arguements, needed for 
 		self.generation = generation
 		self.name = name
 		self.colourmod = colourmod
+
+		self.aquatic = aquatic
 
 		self.mutate()
 

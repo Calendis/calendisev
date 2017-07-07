@@ -5,9 +5,12 @@ import pygame #Import pygame, and variables
 from pygame.locals import *
 
 from random import randint #A function that generates random integers
+from random import random
 
 from math import sin
 from math import log
+
+from noise import pnoise2
 
 from time import time #Unix time module
 
@@ -19,11 +22,14 @@ from lib.Helper import tempcontrol #Import various functions from a script
 from lib.Helper import nonzero
 from lib.Helper import genderfromboolean
 from lib.Helper import vcolourcontrol
+from lib.Helper import raisefromn
 
-from lib import UltraGlobals #Import the organisms lists from UltraGlobals.py
+from lib import UltraGlobals #Import the organisms lists and UltraGlobals.camera from UltraGlobals.py
 
 from lib.Organism import * #Import the classes for organisms
 from lib.Heatbox import * #Import class used for temperature zones
+
+from lib.TerrainConstants import *
 
 from lib import pygame_textinput
 
@@ -44,9 +50,57 @@ pygame.display.set_caption("Evolution Simulator")
 graph_screen_size = (500, 130)
 graph_screen = pygame.Surface((graph_screen_size[0], graph_screen_size[1]))
 
+terrain_screen_size = (2000, 2000)
+
 clock = pygame.time.Clock() #Initialise the pygame clock
 
+LOAD_MAP = True
 
+#Simple function that clears the screen and renders a string
+def render_text(text="undefined", colour=(255,255,255)):
+			screen.fill(colour)
+			rendered_text = oxygen_bold_font.render(text,1,(0,0,0))
+			screen.blit(rendered_text, (screen_size_including_gui[0]/2-((len(text)-3)*4), screen_size_including_gui[1]/2))
+			pygame.display.flip()
+
+
+def colour_chooser(mapposition):
+	'''if mapposition < DEEP_SEA_LEVEL:
+		colour = (0, 0, 120)
+	elif mapposition < SEA_LEVEL:
+		colour = (0, 0, 200)
+	elif mapposition < BEACH_LEVEL:
+		colour = (227,196,152)
+	elif mapposition < BEACHII_LEVEL:
+		colour = (237,206,155)
+	elif mapposition < BEACHIII_LEVEL:
+		colour = (243,212,160)
+	elif mapposition < LOW_GRASS_LEVEL:
+		colour = (115,188,36)
+	elif mapposition < GRASS_LEVEL:
+		colour = (118,190,39)
+	elif mapposition < GRASSII_LEVEL:
+		colour = (120,195,42)
+	elif mapposition < GRASSIII_LEVEL:
+		colour = (125,200,45)
+	elif mapposition < HIGH_GRASS_LEVEL:
+		colour = (135,218,66)
+	elif mapposition < HIGHER_GRASS_LEVEL:
+		colour = (155,238,86)
+	elif mapposition < HIGHERII_GRASS_LEVEL:
+		colour = (175,255,106)
+	elif mapposition < MOUNTAIN_LEVEL:
+		colour = (195, 195, 195)
+	elif mapposition < HIGH_MOUNTAIN_LEVEL:
+		colour = (220, 220, 220)
+	elif mapposition < MAX_MOUNTAIN_LEVEL:
+		colour = (245,245,245)
+	else:
+		colour = (255, 0, 255)'''
+
+	colour = TERRAIN_COLOURS[round(raisefromn(mapposition*len(TERRAIN_COLOURS)))]
+
+	return colour
 
 ############################################################
 class Button(): #Base class for buttons
@@ -61,6 +115,14 @@ class Button(): #Base class for buttons
 		self.text = text
 		self.text = oxygen_bold_font.render(self.text,1,(0,0,0))
 
+class NextButton(Button):
+	"""docstring for NextButton"""
+	def __init__(self, x, y, width, height, colour):
+		self.text = "New Simulation"
+		super(NextButton, self).__init__(x, y, width, height, colour, self.text)
+
+	def acivate(self):
+		pass
 
 class SaveButton(Button):
 	"""docstring for SaveButton"""
@@ -80,6 +142,8 @@ class SaveButton(Button):
 
 		loaded_simulation["organisms"] = UltraGlobals.organisms
 		loaded_simulation["temperature"] = temperature
+
+		loaded_simulation.close()
 
 class SaveCreature(Button):
 	"""docstring for SaveCreature"""
@@ -232,6 +296,11 @@ def main():
 	global creature_loaded
 	global loaded_creature
 
+	terrain_screen = pygame.Surface((terrain_screen_size[0], terrain_screen_size[1]))
+
+
+	titlescreen = True
+
 	refresh = True
 
 	loadbox = False
@@ -253,11 +322,16 @@ def main():
 	rising = False #Variables to do with temperature control
 	falling = False
 
+	map_left = False
+	map_right = False
+	map_up = False
+	map_down = False
+
 	show_hitboxes = False #Controls whether hitboxes are drawn or not
 
 	done = False #If true, pygame quits
 
-	info_target = None #A variable to contain a reference to an organism instance when displaying information
+	info_target = False #A variable to contain a reference to an organism instance when displaying information
 
 	averaging_list = [] #Create an empty list
 
@@ -275,285 +349,394 @@ def main():
 	load_creature = LoadCreature(1170, 220, 110, 30,(150,150,150))
 
 	buttons = [load_button, save_button, kill_tool, species_kill, kill_small, save_creature, load_creature]
+	next_button = NextButton(1170, 10, 110, 30, (150,150,150))
+	title_buttons = [next_button]
 
-	while not done: #Main loop
+	while not done and titlescreen:
+		#Drawing Below
+		for button in title_buttons:
+			pygame.draw.rect(screen, (button.colour), (button.x, button.y, button.width, button.height))
+			screen.blit(button.text, (button.x, button.y))
+
 		events = pygame.event.get()
-		if loadbox:
-			if load_text_input.update(events):
-				load_button.true_activate(load_text_input.get_text())
-				loadbox = False
-
-		if savebox:
-			if save_text_input.update(events):
-				save_button.true_activate(save_text_input.get_text())
-				savebox = False
-
-		if loadcreaturebox:
-			if loadcreature_text_input.update(events):
-				load_creature.true_activate(loadcreature_text_input.get_text())
-				loadcreaturebox = False
 
 		for event in events:
 			#Event Handling
 			if event.type == pygame.QUIT:
 				done = True
-			if event.type == pygame.KEYDOWN:
-				if event.key == K_c:
-					if not loadbox and not savebox and not loadcreaturebox:
-						new_animal = Animal(ANIMAL_COLOUR,randint(0,screen_size[0]),randint(0,screen_size[1]))
-						UltraGlobals.organisms.append(new_animal) #Creates a new Animal instance and adds it to the list
-						UltraGlobals.animals.append(new_animal) #Adds the animal to the animals list as well
-				if event.key == K_p:
-					if not loadbox and not savebox and not loadcreaturebox:
-						new_plant = Plant(PLANT_COLOUR,randint(0,screen_size[0]), randint(0,screen_size[1]))
-						UltraGlobals.organisms.append(new_plant) #Creates a new Plant instance and adds it to the list
-						UltraGlobals.plants.append(new_plant) #Adds the plant to the plants list as well
-				if event.key == K_s:
-					if not loadbox and not savebox and not loadcreaturebox:
-						if show_hitboxes: #Toggles the show_hitboxes variable when s is pressed
-							show_hitboxes = False
-						elif not show_hitboxes:
-							show_hitboxes = True
-				if event.key == K_r:
-					if not loadbox and not savebox and not loadcreaturebox:
-						if refresh: #Toggles refresh
-							refresh = False
-						elif not refresh:
-							refresh = True
-				if event.key == K_k: #Toggles the calculate_extras variable when k is pressed
-					if not loadbox and not savebox and not loadcreaturebox:
-						if calculate_extras:
-							calculate_extras = False
-						elif not calculate_extras:
-							calculate_extras = True
-				if event.key == K_UP:# Controls the temperature with the up and down keys
-					rising = True
-				if event.key == K_DOWN:
-					falling = True
-
-			if event.type == pygame.KEYUP:
-				if event.key == K_UP:
-					rising = False
-				if event.key == K_DOWN:
-					falling = False
-
 			if event.type == MOUSEBUTTONDOWN:
-				for organism in UltraGlobals.organisms: #Detects organisms underneath the cursor when clicked
-					if pygame.Rect.colliderect(organism.hitbox, (pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)) == 1:
-						if kill_tool.on:
-							organism.dead = True
-						if species_kill.on:
-							for organism2 in UltraGlobals.organisms:
-								if organism2.name == organism.name:
-									organism2.dead = True
-						if save_creature.on:
-							save_creature.activate()
-							
-							loaded_creature = shelve.open("saved_creatures/"+str(organism.name)+" "+str(organism.generation))
-							loaded_creature["creature"] = organism
-						else:
-							info_target = organism
-
-				if creature_loaded:
-					loaded_creature.x = pygame.mouse.get_pos()[0]
-					loaded_creature.y = pygame.mouse.get_pos()[1]
-					UltraGlobals.organisms.append(loaded_creature)
-					creature_loaded = False
-
-				for button in buttons:
+				for button in title_buttons: #Detects mouse clicks for title screen buttons
 					if pygame.Rect.colliderect(pygame.Rect(button.x, button.y, button.width, button.height), (pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)) == 1:
-						button.activate()
+						if button.__class__ == NextButton:
+							titlescreen = False
 
-		#Logic Below
+		pygame.display.flip()
 
-		organism_count = len(UltraGlobals.organisms)
-		incrementor += 1
+	if not titlescreen:
+		#Generates terrain noisemaps
+		heightmap = []
+		moisturemap = []
+		MAP_SIZE = 0.5
 
-		temperature += sin((time()-start_time)/10)/200 #Creates the "seasons"
+		if not LOAD_MAP:
+			'''screen.fill((255,255,255))
+			loadingtext = oxygen_header_font.render("Generating terrain heightmap...",1,(0,0,0))
+			screen.blit(loadingtext, (500, 100))
+			pygame.display.flip()'''
 
-		if rising == True: #Controls the temperature
-			temperature += 1
-		if falling == True:
-			temperature -= 1
+			render_text("Generating terrain heightmap...")
+			
+			for i in range(terrain_screen_size[0]):
+				for j in range(terrain_screen_size[1]):
+					heightmap.append([pnoise2((i*MAP_SIZE)/800, (j*MAP_SIZE)/600, 8)*2, i, j])
+    		
+			'''screen.fill((255,255,255))
+			loadingtext = oxygen_header_font.render("Rendering terrain heightmap...",1,(0,0,0))
+			screen.blit(loadingtext, (500, 100))
+			pygame.display.flip()'''
 
-		averaging_list = []
-		for organism in UltraGlobals.organisms: #Iterates over every object in the organisms list
-			organism.update() #Runs the organisms update method
+			render_text("Rendering terrain heightmap...")
 
-			if calculate_extras: #Calculates some things
-				if organism.name not in averaging_list:
-					averaging_list.append(organism.name)
+			for i in range(len(heightmap)):
+				land_colour = colour_chooser(heightmap[i][0])
 
-			if organism.energy < 1: #Slowly kills an organism if it runs out of energy
-				organism.fitness -= 1	
-
-			if round(temperature) not in organism.temprange: #Affects an organism if it is not in the right temperature
-				if organism.__class__ == Animal:
-					organism.fitness -= 5
-				elif organism.__class__ == Plant:
-					organism.dormant = True
-					organism.energy -= 5
-			else:
-				if organism.__class__ == Plant:
-					organism.dormant = False
-
-			if organism.x > screen_size[0]-organism.size and organism.xspeed > 0:
-				organism.xspeed *= -1 #Reverses an organisms direction if it tries to move out of bounds
-			elif organism.x < 0 and organism.xspeed < 0:
-				organism.xspeed *= -1
-			if organism.y > screen_size[1]-organism.size and organism.yspeed > 0:
-				organism.yspeed *= -1
-			elif organism.y < 0+organism.size and organism.yspeed < 0:
-				organism.yspeed *= -1
-
-			if organism.__class__ == Animal:
-				for organism2 in UltraGlobals.organisms:
-					if organism != organism2:
-						if pygame.Rect.colliderect(organism.view, organism2.hitbox) == 1:
-							organism.sensory_input["organism"] = organism2
-							#print("It sees!")
-
-							if organism.targeter == organism2:
-								organism.can_see_targeter = True
-								#print("It sees back!")
-
-						if abs(organism.trait_value-organism2.trait_value) < 2000 and organism2.__class__ == Animal and organism.gender != organism2.gender and organism.fitness > organism.maxfitness*0.75 and organism2.fitness > organism2.maxfitness*0.75:
-							organism.mating_target = organism2
-							#print("It yearns!")
-
-						if pygame.Rect.colliderect(organism.hitbox, organism2.hitbox) == 1:
-							if organism.target == organism2:
-								#print("It consumes!")
-								if organism2.dormant:
-									organism.energy += (0.5+organism.poison)
-								else:
-									organism.energy += (6+organism.poison)
-									organism.fitness += (2+organism.poison)
-								organism.fitness -= organism2.poison
-								organism2.fitness -= (6+organism.poison)
-						
-							if organism.mating_target == organism2:
-								#print("It loves!")
-								organism.reproduce((organism.size+organism2.size)/2, 
-									(organism.maxspeed+organism2.maxspeed)/2, 
-									(organism.maxfitness+organism2.maxfitness)/2, 
-									(organism.insulation+organism2.insulation)/2, 
-									(organism.mutability+organism2.mutability)/2,
-									(organism.aggressiveness+organism2.aggressiveness)/2,
-									(organism.defensiveness+organism2.defensiveness)/2)
-
-			if organism.dead == True: #Removes dead organisms from the list and deletes their reference
-				UltraGlobals.organisms.remove(organism)
-				if organism in UltraGlobals.animals and organism.__class__ == Animal:
-					UltraGlobals.animals.remove(organism)
-				elif organism in UltraGlobals.plants and organism.__class__ == Plant:
-					UltraGlobals.plants.remove(organism)
-				del(organism)
-
-		try:
-			speciestext = oxygen_bold_font.render(info_target.name,1,(0,0,0)) #Renders text, but does not draw it
-			typetext = oxygen_font.render("Type: "+str(class_string(info_target.__class__)),1,(0,0,0))
-			sizetext = oxygen_font.render("Size: "+str(round(info_target.size, 1)),1,(0,0,0))
-			gendertext = oxygen_font.render("Sex: "+genderfromboolean(info_target.gender),1,(0,0,0))
-			generationtext = oxygen_font.render("Generation: "+str(info_target.generation),1,(0,0,0))
-			fitnesstext = oxygen_font.render("Fitness: "+str(round(info_target.fitness, 1))+"/"+str(round(info_target.maxfitness, 1)),1,(0,0,0))
-			energytext = oxygen_font.render("Energy: "+str(round(info_target.energy, 1)),1,(0,0,0))
-			lifetext = oxygen_font.render("Time left: "+str(info_target.lifespan),1,(0,0,0))
-			insulationtext = oxygen_font.render("Insulation: "+str(round(info_target.insulation, 1)),1,(0,0,0))
-			mutabilitytext = oxygen_font.render("Mutability: "+str(round(info_target.mutability, 1)),1,(0,0,0))
-			poisontext = oxygen_font.render("Poison: "+str(round(info_target.poison, 1)),1,(0,0,0))
-			traitvaluetext = oxygen_font.render("Trait Value: "+str(info_target.trait_value),1,(0,0,0))
-		except:
-			speciestext = oxygen_bold_font.render("Click on an organism for statistics...",1,(0,0,0))
-
-		if calculate_extras:
-			averageinsulationtext = oxygen_font.render(str(averaging_list),1,(0,0,0))
-
-		temperaturetext = oxygen_font.render("Temperature: "+str(round(temperature,1)),1,(0,0,0))
-
-		if loadbox:
-			load_prompt_text = oxygen_bold_font.render("Enter name of file to load:",1,(0,0,0))
-		if savebox:
-			save_prompt_text = oxygen_bold_font.render("Enter name of file to save:",1,(0,0,0))
-		if loadcreaturebox:
-			loadcreature_prompt_text = oxygen_bold_font.render("Enter name of creature to load:",1,(0,0,0))
-
-		#Drawing Below
-		if refresh:
-			screen.fill((colourcontrol(temperature*5), colourcontrol(100-nonzero(temperature)), colourcontrol(100-temperature*5)))
-			#Fills the screen with a colour based off of the temperature
-
-			for organism in UltraGlobals.organisms: #Iterates over the organisms and draws them
-				pygame.draw.circle(screen, vcolourcontrol((organism.colour)), (round(organism.x), round(organism.y)), round(organism.size/3)+2)
-
-				if show_hitboxes: #Draws hitboxes if show_hitboxes is True
-					pygame.draw.line(screen, (255,0,0), (organism.hitbox.x, organism.hitbox.y), (organism.hitbox.x+organism.hitbox.width, organism.hitbox.y))
-					pygame.draw.line(screen, (255,0,0), (organism.hitbox.x+organism.hitbox.width, organism.hitbox.y), (organism.hitbox.x+organism.hitbox.width, organism.hitbox.y+organism.hitbox.height))
-					pygame.draw.line(screen, (255,0,0), (organism.hitbox.x+organism.hitbox.width, organism.hitbox.y+organism.hitbox.height), (organism.hitbox.x, organism.hitbox.y+organism.hitbox.height))
-					pygame.draw.line(screen, (255,0,0), (organism.hitbox.x, organism.hitbox.y+organism.hitbox.height), (organism.hitbox.x, organism.hitbox.y))
-
-					pygame.draw.line(screen, (255,0,0), (organism.view.x, organism.view.y), (organism.view.x+organism.view.width, organism.view.y))
-					pygame.draw.line(screen, (255,0,0), (organism.view.x+organism.view.width, organism.view.y), (organism.view.x+organism.view.width, organism.view.y+organism.view.height))
-					pygame.draw.line(screen, (255,0,0), (organism.view.x+organism.view.width, organism.view.y+organism.view.height), (organism.view.x, organism.view.y+organism.view.height))
-					pygame.draw.line(screen, (255,0,0), (organism.view.x, organism.view.y+organism.view.height), (organism.view.x, organism.view.y))
+				pygame.draw.line(terrain_screen, land_colour, (heightmap[i][1], heightmap[i][2]), (heightmap[i][1], heightmap[i][2]))
 
 
-			#Draws the gui thing
-			pygame.draw.rect(screen, (255,255,230), (801,0,399,470))
-			pygame.draw.rect(screen, (255,245,210), (1101,0,199,470))
-			pygame.draw.rect(screen, (60,60,60), (801,470,500,130))
+			loaded_map = shelve.open("maps/default_map")
+			loaded_map["map"] = heightmap
+			pygame.image.save(terrain_screen, "maps/default_map.png")
+			loaded_map.close()
 
-			for button in buttons:
-				pygame.draw.rect(screen, (button.colour), (button.x, button.y, button.width, button.height))
-				screen.blit(button.text, (button.x, button.y))
 
-			#Graphs things
-			#pygame.draw.rect(graph_screen, (colourcontrol(255-organism_count),colourcontrol(0+organism_count),0), (placing,graph_screen_size[1]-organism_count/(600/130),1,organism_count/(600/130)))
+		else:
+            
+			'''screen.fill((255,255,255))
+			loadingtext = oxygen_header_font.render("Loading terrain heightmap...",1,(0,0,0))
+			screen.blit(loadingtext, (500, 100))
+			pygame.display.flip()'''
+			render_text("Loading terrain map...")
+            
+			loaded_map = shelve.open("maps/default_map")
+			heightmap = loaded_map["map"]
+			terrain_screen = pygame.image.load("maps/default_map.png")
+			loaded_map.close()
 
-			screen.blit(graph_screen, (806, 475))
-			placing += 1
-			if placing > 499:
-				placing = 0
-				graph_screen.fill((0,0,0))
+	while True and not done:
 
-			#Draws boxed when buttons are clicked
+		while not done and not titlescreen: #Main loop
+			events = pygame.event.get()
 			if loadbox:
-				pygame.draw.rect(screen, (255,255,210), (806,screen_size[1]-200,489,190))
-				screen.blit(load_prompt_text, (808,screen_size[1]-200))
-				screen.blit(load_text_input.get_surface(), (980,screen_size[1]-197))
-			if savebox:
-				pygame.draw.rect(screen, (255,255,210), (806,screen_size[1]-200,489,190))
-				screen.blit(save_prompt_text, (808,screen_size[1]-200))
-				screen.blit(save_text_input.get_surface(), (980,screen_size[1]-197))
-			if loadcreaturebox:
-				pygame.draw.rect(screen, (255,255,210), (806,screen_size[1]-200,489,190))
-				screen.blit(loadcreature_prompt_text, (808,screen_size[1]-200))
-				screen.blit(loadcreature_text_input.get_surface(), (1020,screen_size[1]-197))
+				if load_text_input.update(events):
+					load_button.true_activate(load_text_input.get_text())
+					loadbox = False
 
-			#Draws gui elements
+			if savebox:
+				if save_text_input.update(events):
+					save_button.true_activate(save_text_input.get_text())
+					savebox = False
+
+			if loadcreaturebox:
+				if loadcreature_text_input.update(events):
+					load_creature.true_activate(loadcreature_text_input.get_text())
+					loadcreaturebox = False
+
+			for event in events:
+				#Event Handling
+				if event.type == pygame.QUIT:
+					done = True
+				if event.type == pygame.KEYDOWN:
+					if event.key == K_c:
+						if not loadbox and not savebox and not loadcreaturebox:
+							new_animal = Animal(ANIMAL_COLOUR,randint(-UltraGlobals.camera.x,screen_size[0]-UltraGlobals.camera.x),randint(0-UltraGlobals.camera.y,screen_size[1]-UltraGlobals.camera.y))
+							UltraGlobals.organisms.append(new_animal) #Creates a new Animal instance and adds it to the list
+							UltraGlobals.animals.append(new_animal) #Adds the animal to the animals list as well
+					if event.key == K_p:
+						if not loadbox and not savebox and not loadcreaturebox:
+							new_plant = Plant(PLANT_COLOUR,randint(-UltraGlobals.camera.x,screen_size[0]-UltraGlobals.camera.x), randint(0-UltraGlobals.camera.y,screen_size[1]-UltraGlobals.camera.y))
+							UltraGlobals.organisms.append(new_plant) #Creates a new Plant instance and adds it to the list
+							UltraGlobals.plants.append(new_plant) #Adds the plant to the plants list as well
+					if event.key == K_h:
+						if not loadbox and not savebox and not loadcreaturebox:
+							if show_hitboxes: #Toggles the show_hitboxes variable when s is pressed
+								show_hitboxes = False
+							elif not show_hitboxes:
+								show_hitboxes = True
+					if event.key == K_r:
+						if not loadbox and not savebox and not loadcreaturebox:
+							if refresh: #Toggles refresh
+								refresh = False
+							elif not refresh:
+								refresh = True
+					if event.key == K_k: #Toggles the calculate_extras variable when k is pressed
+						if not loadbox and not savebox and not loadcreaturebox:
+							if calculate_extras:
+								calculate_extras = False
+							elif not calculate_extras:
+								calculate_extras = True
+					if event.key == K_w:
+						map_up = True
+					if event.key == K_a:
+						map_left = True
+					if event.key == K_s:
+						map_down = True
+					if event.key == K_d:
+						map_right = True
+					if event.key == K_UP:# Controls the temperature with the up and down keys
+						rising = True
+					if event.key == K_DOWN:
+						falling = True
+
+				if event.type == pygame.KEYUP:
+					if event.key == K_UP:
+						rising = False
+					if event.key == K_DOWN:
+						falling = False
+					if event.key == K_w:
+						map_up = False
+					if event.key == K_a:
+						map_left = False
+					if event.key == K_s:
+						map_down = False
+					if event.key == K_d:
+						map_right = False
+
+				if event.type == MOUSEBUTTONDOWN:
+					for organism in UltraGlobals.organisms: #Detects organisms underneath the cursor when clicked
+						if pygame.Rect.colliderect(organism.drawn_hitbox, (pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)) == 1:
+							if kill_tool.on:
+								organism.dead = True
+							if species_kill.on:
+								for organism2 in UltraGlobals.organisms:
+									if organism2.name == organism.name:
+										organism2.dead = True
+							if save_creature.on:
+								save_creature.activate()
+								
+								loaded_creature = shelve.open("saved_creatures/"+str(organism.name)+" "+str(organism.generation))
+								loaded_creature["creature"] = organism
+								loaded_creature.close()
+							else:
+								info_target = organism
+
+					if creature_loaded:
+						loaded_creature.x = pygame.mouse.get_pos()[0]
+						loaded_creature.y = pygame.mouse.get_pos()[1]
+						UltraGlobals.organisms.append(loaded_creature)
+						creature_loaded = False
+
+					for button in buttons:
+						if pygame.Rect.colliderect(pygame.Rect(button.x, button.y, button.width, button.height), (pygame.mouse.get_pos()[0],pygame.mouse.get_pos()[1],1,1)) == 1:
+							button.activate()
+
+			#Logic Below
+			organism_count = len(UltraGlobals.organisms)
+			incrementor += 1
+
+			temperature += sin((time()-start_time)/10)/200 #Creates the "seasons"
+
+			if rising: #Controls the temperature
+				temperature += 1
+			if falling:
+				temperature -= 1
+
+			if map_left:
+				UltraGlobals.camera.x += 2
+			if map_right:
+				UltraGlobals.camera.x -= 2
+			if map_up:
+				UltraGlobals.camera.y += 2
+			if map_down:
+				UltraGlobals.camera.y -= 2
+
+			averaging_list = []
+			for organism in UltraGlobals.organisms: #Iterates over every object in the organisms list
+				organism.reposition()
+				organism.terrain_height = heightmap[round(organism.x*organism.y)-1][0]
+				organism.update() #Runs the organisms update method
+
+				if calculate_extras: #Calculates some things
+					if organism.name not in averaging_list:
+						averaging_list.append(organism.name)
+
+				if organism.energy < 1: #Slowly kills an organism if it runs out of energy
+					organism.fitness -= 1	
+
+				if round(temperature) not in organism.temprange: #Affects an organism if it is not in the right temperature
+					if organism.__class__ == Animal:
+						organism.fitness -= 4
+					elif organism.__class__ == Plant:
+						organism.dormant = True
+						organism.fitness -= 4
+				else:
+					if organism.__class__ == Plant:
+						organism.dormant = False
+
+				if organism.x > terrain_screen_size[0]-organism.size and organism.xspeed > 0:
+					organism.xspeed *= -1 #Reverses an organisms direction if it tries to move out of bounds
+				elif organism.x < 0 and organism.xspeed < 0:
+					organism.xspeed *= -1
+				if organism.y > terrain_screen_size[1]-organism.size and organism.yspeed > 0:
+					organism.yspeed *= -1
+				elif organism.y < 0+organism.size and organism.yspeed < 0:
+					organism.yspeed *= -1
+
+				if organism.__class__ == Animal:
+					for organism2 in UltraGlobals.organisms:
+						if organism != organism2:
+							if pygame.Rect.colliderect(organism.view, organism2.hitbox) == 1:
+								organism.sensory_input["organism"] = organism2
+								#print("It sees!")
+
+								if organism.targeter == organism2:
+									organism.can_see_targeter = True
+									#print("It sees back!")
+
+							if abs(organism.trait_value-organism2.trait_value) < 2000 and organism2.__class__ == Animal and organism.gender != organism2.gender and organism.fitness > organism.maxfitness*0.75 and organism2.fitness > organism2.maxfitness*0.75:
+								organism.mating_target = organism2
+								#print("It yearns!")
+
+							if pygame.Rect.colliderect(organism.hitbox, organism2.hitbox) == 1:
+								if organism.target == organism2:
+									#print("It consumes!")
+									if organism2.dormant:
+										organism.energy += (0.5+organism.poison)
+									else:
+										organism.energy += (6+organism.poison)
+										organism.fitness += (2+organism.poison)
+									organism.fitness -= organism2.poison
+									organism2.fitness -= (6+organism.poison)
+							
+								if organism.mating_target == organism2:
+									#print("It loves!")
+									organism.reproduce((organism.size+organism2.size)/2, 
+										(organism.maxspeed+organism2.maxspeed)/2, 
+										(organism.maxfitness+organism2.maxfitness)/2, 
+										(organism.insulation+organism2.insulation)/2, 
+										(organism.mutability+organism2.mutability)/2,
+										(organism.aggressiveness+organism2.aggressiveness)/2,
+										(organism.defensiveness+organism2.defensiveness)/2)
+
+				if organism.dead == True: #Removes dead organisms from the list and deletes their reference
+					UltraGlobals.organisms.remove(organism)
+					if organism in UltraGlobals.animals and organism.__class__ == Animal:
+						UltraGlobals.animals.remove(organism)
+					elif organism in UltraGlobals.plants and organism.__class__ == Plant:
+						UltraGlobals.plants.remove(organism)
+					del(organism)
+
 			try:
-				screen.blit(speciestext, (810,5)) #Draws text
-				screen.blit(typetext, (810,25))
-				screen.blit(sizetext, (810, 45))
-				screen.blit(gendertext, (810,65))
-				screen.blit(generationtext, (810,85))
-				screen.blit(fitnesstext, (810,105))
-				screen.blit(energytext, (810,125))
-				screen.blit(lifetext, (810,145))
-				screen.blit(insulationtext, (810,165))
-				screen.blit(mutabilitytext, (810,205))
-				screen.blit(poisontext, (810,225))
-				screen.blit(traitvaluetext, (810,245))
+				speciestext = oxygen_bold_font.render(info_target.name,1,(0,0,0)) #Renders text, but does not draw it
+				typetext = oxygen_font.render("Type: "+str(class_string(info_target.__class__)),1,(0,0,0))
+				sizetext = oxygen_font.render("Size: "+str(round(info_target.size, 1)),1,(0,0,0))
+				gendertext = oxygen_font.render("Sex: "+genderfromboolean(info_target.gender),1,(0,0,0))
+				generationtext = oxygen_font.render("Generation: "+str(info_target.generation),1,(0,0,0))
+				fitnesstext = oxygen_font.render("Fitness: "+str(round(info_target.fitness, 1))+"/"+str(round(info_target.maxfitness, 1)),1,(0,0,0))
+				energytext = oxygen_font.render("Energy: "+str(round(info_target.energy, 1)),1,(0,0,0))
+				lifetext = oxygen_font.render("Time left: "+str(info_target.lifespan),1,(0,0,0))
+				insulationtext = oxygen_font.render("Insulation: "+str(round(info_target.insulation, 1)),1,(0,0,0))
+				mutabilitytext = oxygen_font.render("Mutability: "+str(round(info_target.mutability, 1)),1,(0,0,0))
+				poisontext = oxygen_font.render("Poison: "+str(round(info_target.poison, 1)),1,(0,0,0))
+				traitvaluetext = oxygen_font.render("Trait Value: "+str(info_target.trait_value),1,(0,0,0))
+				aquatictext = oxygen_font.render("Aquatic: "+str(info_target.aquatic), 1, (0,0,0))
 			except:
-				screen.blit(speciestext, (810,5))
+				speciestext = oxygen_bold_font.render("Click on an organism for statistics...",1,(0,0,0))
 
 			if calculate_extras:
-				screen.blit(averageinsulationtext, (810,325))
+				averageinsulationtext = oxygen_font.render(str(averaging_list),1,(0,0,0))
 
-			screen.blit(temperaturetext, (1170,265))
- 
-			pygame.display.flip() #Updates screen
-		clock.tick(60) #Framerate
+			temperaturetext = oxygen_font.render("Temperature: "+str(round(temperature,1)),1,(0,0,0))
+
+			if loadbox:
+				load_prompt_text = oxygen_bold_font.render("Enter name of file to load:",1,(0,0,0))
+			if savebox:
+				save_prompt_text = oxygen_bold_font.render("Enter name of file to save:",1,(0,0,0))
+			if loadcreaturebox:
+				loadcreature_prompt_text = oxygen_bold_font.render("Enter name of creature to load:",1,(0,0,0))
+
+			#Drawing Below
+			if refresh:
+				#screen.fill((colourcontrol(temperature*5), colourcontrol(100-nonzero(temperature)), colourcontrol(100-temperature*5)))
+				#Fills the screen with black
+				screen.fill((0,0,0))
+
+				screen.blit(terrain_screen, (UltraGlobals.camera.x, UltraGlobals.camera.y)) #Draws the terrain at the camera position
+
+				for organism in UltraGlobals.organisms: #Iterates over the organisms and draws them
+					#if pygame.Rect.colliderect(organism.hitbox, UltraGlobals.camera): #If they are in view of the UltraGlobals.camera, that is
+						
+					pygame.draw.circle(screen, vcolourcontrol((organism.colour)), (round(organism.x+UltraGlobals.camera.x), round(organism.y+UltraGlobals.camera.y)), round(organism.size/3)+2)
+
+					if show_hitboxes: #Draws hitboxes if show_hitboxes is True
+						pygame.draw.line(screen, (255,0,0), (organism.drawn_hitbox.x, organism.drawn_hitbox.y), (organism.drawn_hitbox.x+organism.drawn_hitbox.width, organism.drawn_hitbox.y))
+						pygame.draw.line(screen, (255,0,0), (organism.drawn_hitbox.x+organism.drawn_hitbox.width, organism.drawn_hitbox.y), (organism.drawn_hitbox.x+organism.drawn_hitbox.width, organism.drawn_hitbox.y+organism.drawn_hitbox.height))
+						pygame.draw.line(screen, (255,0,0), (organism.drawn_hitbox.x+organism.drawn_hitbox.width, organism.drawn_hitbox.y+organism.drawn_hitbox.height), (organism.drawn_hitbox.x, organism.drawn_hitbox.y+organism.drawn_hitbox.height))
+						pygame.draw.line(screen, (255,0,0), (organism.drawn_hitbox.x, organism.drawn_hitbox.y+organism.drawn_hitbox.height), (organism.drawn_hitbox.x, organism.drawn_hitbox.y))
+
+						#pygame.draw.line(screen, (255,0,0), (organism.view.x, organism.view.y), (organism.view.x+organism.view.width, organism.view.y))
+						#pygame.draw.line(screen, (255,0,0), (organism.view.x+organism.view.width, organism.view.y), (organism.view.x+organism.view.width, organism.view.y+organism.view.height))
+						#pygame.draw.line(screen, (255,0,0), (organism.view.x+organism.view.width, organism.view.y+organism.view.height), (organism.view.x, organism.view.y+organism.view.height))
+						#pygame.draw.line(screen, (255,0,0), (organism.view.x, organism.view.y+organism.view.height), (organism.view.x, organism.view.y))
+
+
+				#Draws the gui thing
+				pygame.draw.rect(screen, (255,255,230), (801,0,399,470))
+				pygame.draw.rect(screen, (255,245,210), (1101,0,199,470))
+				pygame.draw.rect(screen, (60,60,60), (801,470,500,130))
+
+				for button in buttons:
+					pygame.draw.rect(screen, (button.colour), (button.x, button.y, button.width, button.height))
+					screen.blit(button.text, (button.x, button.y))
+
+				#Graphs things
+				#pygame.draw.rect(graph_screen, (colourcontrol(255-organism_count),colourcontrol(0+organism_count),0), (placing,graph_screen_size[1]-organism_count/(600/130),1,organism_count/(600/130)))
+
+				screen.blit(graph_screen, (806, 475))
+				placing += 1
+				if placing > 499:
+					placing = 0
+					graph_screen.fill((0,0,0))
+
+				#Draws boxed when buttons are clicked
+				if loadbox:
+					pygame.draw.rect(screen, (255,255,210), (806,screen_size[1]-200,489,190))
+					screen.blit(load_prompt_text, (808,screen_size[1]-200))
+					screen.blit(load_text_input.get_surface(), (980,screen_size[1]-197))
+				if savebox:
+					pygame.draw.rect(screen, (255,255,210), (806,screen_size[1]-200,489,190))
+					screen.blit(save_prompt_text, (808,screen_size[1]-200))
+					screen.blit(save_text_input.get_surface(), (980,screen_size[1]-197))
+				if loadcreaturebox:
+					pygame.draw.rect(screen, (255,255,210), (806,screen_size[1]-200,489,190))
+					screen.blit(loadcreature_prompt_text, (808,screen_size[1]-200))
+					screen.blit(loadcreature_text_input.get_surface(), (1020,screen_size[1]-197))
+
+				#Draws gui elements
+				try:
+					screen.blit(speciestext, (810,5)) #Draws text
+					screen.blit(typetext, (810,25))
+					screen.blit(sizetext, (810, 45))
+					screen.blit(gendertext, (810,65))
+					screen.blit(generationtext, (810,85))
+					screen.blit(fitnesstext, (810,105))
+					screen.blit(energytext, (810,125))
+					screen.blit(lifetext, (810,145))
+					screen.blit(insulationtext, (810,165))
+					screen.blit(mutabilitytext, (810,205))
+					screen.blit(poisontext, (810,225))
+					screen.blit(traitvaluetext, (810,245))
+					screen.blit(aquatictext, (810,265))
+				except:
+					screen.blit(speciestext, (810,5))
+
+				if calculate_extras:
+					screen.blit(averageinsulationtext, (810,325))
+
+				screen.blit(temperaturetext, (1170,265))
+		
+				pygame.display.flip() #Updates screen
+			clock.tick(60) #Framerate
+
 
 	pygame.quit() #Quits if all loops are exited
 

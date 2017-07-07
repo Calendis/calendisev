@@ -27,6 +27,8 @@
 
 * Environment
   * Temperature
+  * Slope
+  * Water
 
 * Meta
   * Saving/loading simulations
@@ -37,6 +39,7 @@
   * Population graph
   * Population limit **(can be adjusted in the code)**
   * Display information on an organism
+  * WASD to move map around
 
 * TODO:
   * Give creatures adaptable behaviour via a neural network... somehow
