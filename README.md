@@ -1,6 +1,6 @@
 ## CalendisEv
 ### An evolution simulator in Python 3
-![Screenshot of Simulator](http://i.imgur.com/5DkUzst.png)
+![Screenshot of Simulator](http://i.imgur.com/eMqYxHp.png)
 
 #### Required libraries
 * Pygame
